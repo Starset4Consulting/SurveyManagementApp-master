@@ -4,7 +4,7 @@
     "slug": "SurveyManagementApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "assets/logo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -22,10 +22,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0a1cb16c-0566-493c-986b-bd24aa47565b"
+      }
     }
-    
   }
 }
- 
- 
-
