@@ -29,7 +29,7 @@ def init_db():
                     FOREIGN KEY (survey_id) REFERENCES surveys(id))''')
 
     # Insert a default user if not present (no role needed)
-    conn.execute("INSERT OR IGNORE INTO users (phone_number, username, password) VALUES (?, ?, ?)")
+    conn.execute("INSERT OR IGNORE INTO users (phone_number, username, password) VALUES (?, ?, ?)") 
                 #  ("0000000000", "Admin", "password@123"))  # Keeping an admin for testing
     conn.commit()
     conn.close()
@@ -127,6 +127,7 @@ def get_survey(survey_id):
         return jsonify({"error": "Survey not found"}), 404
 
 
+
 import math
 
 # Function to calculate distance using the Haversine formula
@@ -184,8 +185,25 @@ def submit_survey():
 
     return jsonify({"success": True, "message": "Survey response submitted successfully"})
 
+@app.route('/surveys/<int:survey_id>', methods=['DELETE'])
+def delete_survey(survey_id):
+    conn = sqlite3.connect('surveyapp.db')
+    cursor = conn.cursor()
 
+    # Check if the survey exists
+    cursor.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,))
+    survey = cursor.fetchone()
+
+    if survey:
+        # Delete the survey
+        cursor.execute("DELETE FROM surveys WHERE id = ?", (survey_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Survey deleted successfully'}), 200
+    else:
+        conn.close()
+        return jsonify({'error': 'Survey not found'}), 404
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True) 

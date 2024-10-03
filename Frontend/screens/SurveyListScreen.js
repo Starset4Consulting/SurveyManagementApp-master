@@ -1,36 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header'; // Import the Header component
+import Header from '../components/Header';
 import { View, Text, Button, FlatList, Alert } from 'react-native';
 
 const SurveyListScreen = ({ navigation, route }) => {
-  // Retrieve the userId from the route params
-  const { userId } = route.params || {}; // Use destructuring with a fallback
+  // Retrieve the userId and isAdmin flag from the route params
+  const { userId, isAdmin } = route.params || {}; 
 
   const [surveys, setSurveys] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false); // State to track if the user is an admin
-
-  // Log the userId to check if it's correctly retrieved
-  console.log('userId:', userId);
 
   useEffect(() => {
     const fetchSurveys = async () => {
       try {
         const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/surveys');
         const data = await response.json();
-        // Check if the response contains surveys and update the state
         if (data.surveys) {
           setSurveys(data.surveys);
         } else {
           console.error("No surveys found");
-        }
-
-        // Optional: Check if the user is an admin (you might have an admin flag in your user data)
-        if (userId) {
-          const userResponse = await fetch(`https://0da6-103-177-59-249.ngrok-free.app/users/${userId}`);
-          const userData = await userResponse.json();
-          if (userData.isAdmin) { // Assuming isAdmin is a boolean field in the user data
-            setIsAdmin(true);
-          }
         }
       } catch (error) {
         console.error("Error fetching surveys:", error);
@@ -38,17 +24,43 @@ const SurveyListScreen = ({ navigation, route }) => {
     };
 
     fetchSurveys();
-  }, [userId]); // Added userId as a dependency
+  }, [userId]);
 
-  // Function to handle the survey start and pass userId and surveyId
+  // Function to handle the survey start
   const handleStartSurvey = (surveyId) => {
-    // Navigate to SurveyTakingScreen with both surveyId and userId
-    navigation.navigate('SurveyTaking', { surveyId: surveyId, userId: userId });
+    navigation.navigate('SurveyTaking', { surveyId, userId });
+  };
+
+  // Function to handle the survey deletion (admin only)
+  const handleDeleteSurvey = async (surveyId) => {
+    Alert.alert(
+      'Delete Survey',
+      'Are you sure you want to delete this survey?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', onPress: async () => {
+            try {
+              const response = await fetch(`https://0da6-103-177-59-249.ngrok-free.app/surveys/${surveyId}`, {
+                method: 'DELETE',
+              });
+              const data = await response.json();
+              if (response.ok) {
+                Alert.alert('Success', data.message);
+                setSurveys(surveys.filter(survey => survey.id !== surveyId)); // Remove the deleted survey from the list
+              } else {
+                Alert.alert('Error', data.error || 'Failed to delete survey');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An error occurred while deleting the survey');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Render the Header at the top */}
       <Header title="Survey List" />
       <View style={{ padding: 20 }}>
         <FlatList
@@ -57,8 +69,15 @@ const SurveyListScreen = ({ navigation, route }) => {
           renderItem={({ item }) => (
             <View style={{ marginVertical: 10, padding: 10, borderWidth: 1, borderRadius: 5 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-              {/* Pass surveyId and userId when starting the survey */}
               <Button title="Start Survey" onPress={() => handleStartSurvey(item.id)} />
+              {/* Show the Delete button only if the user is an admin */}
+              {isAdmin && (
+                <Button
+                  title="Delete Survey"
+                  color="red"
+                  onPress={() => handleDeleteSurvey(item.id)}
+                />
+              )}
             </View>
           )}
         />
@@ -66,7 +85,7 @@ const SurveyListScreen = ({ navigation, route }) => {
       {isAdmin && (
         <Button
           title="Create New Survey"
-          onPress={() => navigation.navigate('CreateSurvey', { userId })} // Assuming you have a CreateSurvey screen
+          onPress={() => navigation.navigate('CreateSurvey', { userId })}
         />
       )}
     </View>
