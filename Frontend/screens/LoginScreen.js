@@ -9,7 +9,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     // Use the backend URL
-    const apiUrl = 'https://e8c4-103-177-59-249.ngrok-free.app/login'; // Replace <YOUR_IP_ADDRESS> with your actual backend IP
+    const apiUrl = 'https://0da6-103-177-59-249.ngrok-free.app/login'; // Replace <YOUR_IP_ADDRESS> with your actual backend IP
 
     // Check if it's admin login
     if (username === 'Admin' && password === 'password@123') {

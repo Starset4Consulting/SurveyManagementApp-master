@@ -15,7 +15,7 @@ const SurveyListScreen = ({ navigation, route }) => {
   useEffect(() => {
     const fetchSurveys = async () => {
       try {
-        const response = await fetch('https://e8c4-103-177-59-249.ngrok-free.app/surveys');
+        const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/surveys');
         const data = await response.json();
         // Check if the response contains surveys and update the state
         if (data.surveys) {
@@ -26,7 +26,7 @@ const SurveyListScreen = ({ navigation, route }) => {
 
         // Optional: Check if the user is an admin (you might have an admin flag in your user data)
         if (userId) {
-          const userResponse = await fetch(`https://e8c4-103-177-59-249.ngrok-free.app/users/${userId}`);
+          const userResponse = await fetch(`https://0da6-103-177-59-249.ngrok-free.app/users/${userId}`);
           const userData = await userResponse.json();
           if (userData.isAdmin) { // Assuming isAdmin is a boolean field in the user data
             setIsAdmin(true);

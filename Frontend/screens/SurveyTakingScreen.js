@@ -18,7 +18,7 @@ const SurveyTakingScreen = ({ route }) => {
   useEffect(() => {
     const fetchSurvey = async () => {
       try {
-        const response = await fetch(`https://e8c4-103-177-59-249.ngrok-free.app/surveys/${surveyId}`);
+        const response = await fetch(`https://0da6-103-177-59-249.ngrok-free.app/surveys/${surveyId}`);
         const data = await response.json();
 
         console.log('Fetched survey data:', data); // Debugging: Check if data is being fetched correctly
@@ -80,7 +80,7 @@ const SurveyTakingScreen = ({ route }) => {
     }
 
     try {
-      const response = await fetch('https://e8c4-103-177-59-249.ngrok-free.app/submit_survey', {
+      const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/submit_survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

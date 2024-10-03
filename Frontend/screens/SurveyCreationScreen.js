@@ -42,7 +42,7 @@ const SurveyCreationScreen = ({ navigation }) => {
 
     try {
       // Make API call to create survey
-      const response = await fetch('https://e8c4-103-177-59-249.ngrok-free.app/surveys', {
+      const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/surveys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

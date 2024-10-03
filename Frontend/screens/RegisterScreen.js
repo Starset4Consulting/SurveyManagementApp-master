@@ -10,7 +10,7 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleRegister = async () => {
     // Store the user data or send it to the backend
-    const response = await fetch('https://e8c4-103-177-59-249.ngrok-free.app/register', {
+    const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
