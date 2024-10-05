@@ -7,7 +7,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    const apiUrl = 'https://0da6-103-177-59-249.ngrok-free.app/login'; 
+    const apiUrl = 'https://f1dc-103-57-255-139.ngrok-free.app/login'; 
 
     // Check if it's admin login
     if (username === 'Admin' && password === 'password@123') {

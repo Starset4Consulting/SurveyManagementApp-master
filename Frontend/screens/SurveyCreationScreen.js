@@ -18,6 +18,17 @@ const SurveyCreationScreen = ({ navigation }) => {
     setQuestions(newQuestions);
   };
 
+
+  // Function to handle adding a text box to a specific question
+const addTextBox = (questionIndex) => {
+  const newQuestions = [...questions];
+  newQuestions[questionIndex].textBox = ''; // Adding a new text box field
+  setQuestions(newQuestions);
+};
+
+
+
+
   // Function to update a specific question text
   const updateQuestionText = (text, questionIndex) => {
     const newQuestions = [...questions];
@@ -42,7 +53,7 @@ const SurveyCreationScreen = ({ navigation }) => {
 
     try {
       // Make API call to create survey
-      const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/surveys', {
+      const response = await fetch('https://f1dc-103-57-255-139.ngrok-free.app/surveys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -149,8 +160,9 @@ const SurveyCreationScreen = ({ navigation }) => {
       </TouchableOpacity>
 
       {/* Button to submit the survey */}
-      <Button title="Create Survey" onPress={handleCreateSurvey} />
+      {/* <Button title="Create Survey" onPress={handleCreateSurvey} /> */}
     </ScrollView>
+    <Button title="Create Survey" onPress={handleCreateSurvey} />
     </View>
   );
 };

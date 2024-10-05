@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header'; // Import the Header component
-import { View, Text, Button, FlatList, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Button, FlatList, Alert, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
+import { uploadVoiceRecording } from '../utils/ApiUtils'; // Assuming you have the API utility
 
 const SurveyTakingScreen = ({ route }) => {
   const { surveyId, userId, username } = route.params; // Include username
@@ -18,7 +19,7 @@ const SurveyTakingScreen = ({ route }) => {
   useEffect(() => {
     const fetchSurvey = async () => {
       try {
-        const response = await fetch(`https://0da6-103-177-59-249.ngrok-free.app/surveys/${surveyId}`);
+        const response = await fetch(`https://f1dc-103-57-255-139.ngrok-free.app/surveys/${surveyId}`);
         const data = await response.json();
 
         console.log('Fetched survey data:', data); // Debugging: Check if data is being fetched correctly
@@ -79,8 +80,18 @@ const SurveyTakingScreen = ({ route }) => {
       return;
     }
 
+    // Upload the voice recording file first
+    let uploadedFilePath = '';
+    if (recordingUri) {
+      uploadedFilePath = await uploadVoiceRecording(recordingUri);
+      if (!uploadedFilePath) {
+        Alert.alert('Error', 'Voice recording upload failed.');
+        return;
+      }
+    }
+
     try {
-      const response = await fetch('https://0da6-103-177-59-249.ngrok-free.app/submit_survey', {
+      const response = await fetch('https://f1dc-103-57-255-139.ngrok-free.app/submit_survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +104,7 @@ const SurveyTakingScreen = ({ route }) => {
             latitude: currentLocation.latitude,
             longitude: currentLocation.longitude
           }), 
-          voice_recording_path: recordingUri // Include audio file path
+          voice_recording_path: recordingUri // Include uploaded audio file path
         }),
       });
 
@@ -103,7 +114,7 @@ const SurveyTakingScreen = ({ route }) => {
         setLastSurveyLocation(currentLocation);
         Alert.alert('Success', 'Survey responses submitted successfully!');
       } else {
-        Alert.alert('Error', 'same entry within 5mts.');
+        Alert.alert('Error', 'Same entry within 5 meters.');
       }
     } catch (error) {
       Alert.alert('Error', 'Submission failed. Try again later.');
@@ -118,24 +129,41 @@ const SurveyTakingScreen = ({ route }) => {
         Alert.alert('Permission to access microphone was denied');
         return;
       }
-
-      const recording = new Audio.Recording();
-      const fileName = `${username}_${surveyId}_${Date.now()}.m4a`; // Generate filename
+  
+      // Get the list of files in the document directory
+      const recordingFiles = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
+  
+      // Filter only voice recordings (based on your file naming convention, e.g., 'voice_recording')
+      const existingRecordings = recordingFiles.filter(file => file.startsWith(`${username}_${surveyId}_voice_recording`));
+  
+      // Find the next available file number (auto-increment)
+      const nextRecordingNumber = existingRecordings.length + 1;
+      const fileName = `${username}_${surveyId}_voice_recording${nextRecordingNumber}.m4a`; // Auto-incremented filename
       const uri = `${FileSystem.documentDirectory}${fileName}`;
+  
+      // Prepare to start recording
+      const recording = new Audio.Recording();
       await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
       await recording.startAsync();
+  
+      // Save the recording object and file URI
       setRecording(recording);
-      setRecordingUri(uri); // Set the recording URI
+      setRecordingUri(uri);
+  
+      console.log('Recording started, file path:', uri);
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
   };
+  
 
   const stopRecording = async () => {
     if (recording) {
       await recording.stopAndUnloadAsync();
+      const uri = recording.getURI(); // Get the actual recording URI
+      setRecordingUri(uri); // Save the recording URI
       setRecording(null);
-      Alert.alert('Recording saved!', `Audio file: ${recordingUri}`);
+      Alert.alert('Recording saved!', `Audio file: ${uri}`);
     }
   };
 
@@ -148,54 +176,56 @@ const SurveyTakingScreen = ({ route }) => {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1 }}>
       {/* Render the Header */}
       <Header title="Take Survey" />
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{survey.name}</Text>
-      
-      <FlatList
-        data={survey.questions}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View style={{ marginVertical: 10 }}>
-            {/* Display the question text */}
-            <Text style={{ fontSize: 18, marginBottom: 10 }}>{item.text}</Text>
-            {item.options.map((option, optIndex) => (
-              <TouchableOpacity
-              key={optIndex}
-              onPress={() => handleAnswerSelect(index, option)}
-              style={[
-                styles.optionButton,
-                answers[index] === option && styles.selectedOptionButton, // Apply selected style
-              ]}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  answers[index] === option && styles.selectedOptionText, // Apply selected text style
-                ]}
-              >
-                {option}
-              </Text>
-            </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      />
-      
-      <Button title="Start Recording" onPress={startRecording} />
-      <Button title="Stop Recording" onPress={stopRecording} />
-      <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit}
-        >
-          <Text style={styles.submitButtonText}>Submit Answers</Text>
-        </TouchableOpacity>
-    </View>
-    </View>
+      <View style={{ padding: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{survey.name}</Text>
+
+        <Button title="Start Recording" onPress={startRecording} />
+        {/* <Button title="Stop Recording" onPress={stopRecording} /> */}
+
+        <FlatList
+          data={survey.questions}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item, index }) => (
+            <View style={{ marginVertical: 10 }}>
+              {/* Display the question text */}
+              <Text style={{ fontSize: 18, marginBottom: 10 }}>{item.text}</Text>
+              {item.options.map((option, optIndex) => (
+                <TouchableOpacity
+                  key={optIndex}
+                  onPress={() => handleAnswerSelect(index, option)}
+                  style={[
+                    styles.optionButton,
+                    answers[index] === option && styles.selectedOptionButton, // Apply selected style
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      answers[index] === option && styles.selectedOptionText, // Apply selected text style
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        />
+
+<TouchableOpacity style={styles.submitButton} onPress={() => { 
+    stopRecording(); 
+    handleSubmit(); 
+}}>
+  <Text style={styles.submitButtonText}>Submit</Text>
+</TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 };
+
 const styles = StyleSheet.create({
   optionButton: {
     padding: 10,

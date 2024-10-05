@@ -10,7 +10,7 @@ const AdminDashboardScreen = ({ navigation }) => {
       <Header title="Admin Dashboard" />
       {/* Render the rest of the content below the Header */}
     <View style={{ padding: 20 }}>
-      <Button title="Create Survey" onPress={() => navigation.navigate('SurveyCreation')} />
+      <Button title="Create NEW Survey" onPress={() => navigation.navigate('SurveyCreation')} />
       <Button title="View Survey List" onPress={() => navigation.navigate('SurveyList')} />
     </View>
     </View>

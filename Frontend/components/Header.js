@@ -6,7 +6,8 @@ const Header = () => {
     return (
         <View style={styles.header}>
             <Image 
-                source={require('../assets/logo.png')}  // Add your logo here
+                        source={{ uri: 'https://i.postimg.cc/RF36LB3X/IMG-20241001-WA0015.jpg' }}
+                // Add your logo here
                 style={styles.logo} 
             />
             <Text style={styles.title}>Starset Services</Text>

@@ -1,10 +1,16 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import json
 import sqlite3
+import os
+import math
 
 app = Flask(__name__)
 CORS(app)
+
+# Create an uploads directory if it doesn't exist
+os.makedirs('uploads', exist_ok=True)
 
 # Initialize the database
 def init_db():
@@ -27,10 +33,6 @@ def init_db():
                     voice_recording_path TEXT,
                     FOREIGN KEY (user_id) REFERENCES users(id),
                     FOREIGN KEY (survey_id) REFERENCES surveys(id))''')
-
-    # Insert a default user if not present (no role needed)
-    conn.execute("INSERT OR IGNORE INTO users (phone_number, username, password) VALUES (?, ?, ?)") 
-                #  ("0000000000", "Admin", "password@123"))  # Keeping an admin for testing
     conn.commit()
     conn.close()
 
@@ -53,7 +55,6 @@ def register():
                    (phone_number, username, password))
     conn.commit()
 
-    # Fetch the newly created user's ID
     user_id = cursor.lastrowid
     conn.close()
 
@@ -73,29 +74,27 @@ def login():
     user = cursor.fetchone()
 
     if user:
-        return jsonify({"success": True, "user_id": user[0], "message": "Login successful"})  # Return user_id
+        return jsonify({"success": True, "user_id": user[0], "message": "Login successful"})
     else:
         return jsonify({"success": False, "message": "Invalid credentials"})
-
 
 # Create a new survey
 @app.route('/surveys', methods=['POST'])
 def create_survey():
     data = request.json
     name = data['name']
-    questions = data['questions']  # Expecting a list of questions with options from frontend
+    questions = data['questions']
 
     conn = sqlite3.connect('surveyapp.db')
     cursor = conn.cursor()
 
-    # Store survey name and questions as a string (for simplicity, storing as JSON)
     cursor.execute("INSERT INTO surveys (name, questions) VALUES (?, ?)", (name, str(questions)))
     conn.commit()
     conn.close()
 
     return jsonify({"success": True, "message": "Survey created successfully"})
 
-# User-only: Get a list of all available surveys
+# Get a list of all available surveys
 @app.route('/surveys', methods=['GET'])
 def get_surveys():
     conn = sqlite3.connect('surveyapp.db')
@@ -103,12 +102,12 @@ def get_surveys():
 
     cursor.execute("SELECT * FROM surveys")
     surveys = cursor.fetchall()
-    survey_list = [{"id": s[0], "name": s[1], "questions": eval(s[2])} for s in surveys]  # Convert questions back to list
+    survey_list = [{"id": s[0], "name": s[1], "questions": eval(s[2])} for s in surveys]
 
     conn.close()
     return jsonify({"surveys": survey_list})
 
-# User-only: Get a specific survey by ID
+# Get a specific survey by ID
 @app.route('/surveys/<int:survey_id>', methods=['GET'])
 def get_survey(survey_id):
     conn = sqlite3.connect('surveyapp.db')
@@ -121,16 +120,12 @@ def get_survey(survey_id):
         return jsonify({
             "id": survey[0],
             "name": survey[1],
-            "questions": eval(survey[2])  # Convert questions back to list
+            "questions": eval(survey[2])
         })
     else:
         return jsonify({"error": "Survey not found"}), 404
 
-
-
-import math
-
-# Function to calculate distance using the Haversine formula
+# Haversine formula for distance calculation
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # Radius of the Earth in kilometers
     dlat = math.radians(lat2 - lat1)
@@ -141,25 +136,24 @@ def haversine(lat1, lon1, lat2, lon2):
         math.sin(dlon / 2) ** 2
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c  # Return distance in kilometers
+    return R * c
 
+# Submit a survey response
 @app.route('/submit_survey', methods=['POST'])
 def submit_survey():
     data = request.json
     user_id = data['user_id']
     survey_id = data['survey_id']
-    responses = data['responses']  # Should be sent as a list of answers
-    location = data.get('location')  # Optional, defaults to 'Unknown'
-    voice_recording_path = data.get('voice_recording_path')  # Optional, defaults to empty
+    responses = data['responses']
+    location = data.get('location')
+    voice_recording_path = data.get('voice_recording_path')
 
-    # Parse the current location
     location_data = json.loads(location) if location else None
 
     if location_data:
         latitude = location_data['latitude']
         longitude = location_data['longitude']
 
-        # Check the last location for the user
         conn = sqlite3.connect('surveyapp.db')
         cursor = conn.cursor()
 
@@ -167,17 +161,15 @@ def submit_survey():
         last_response = cursor.fetchone()
         
         if last_response:
-            last_location = json.loads(last_response[0])  # Assuming location is stored as a JSON string
+            last_location = json.loads(last_response[0])
             last_latitude = last_location['latitude']
             last_longitude = last_location['longitude']
             
-            # Calculate the distance using the Haversine formula
             distance = haversine(latitude, longitude, last_latitude, last_longitude)
 
-            if distance < 0.005:  # 5 meters in kilometers
+            if distance < 0.005:
                 return jsonify({"success": False, "message": "You cannot take multiple surveys in this location within 5 meters."})
 
-    # Insert survey response
     cursor.execute("INSERT INTO survey_responses (user_id, survey_id, responses, location, voice_recording_path) VALUES (?, ?, ?, ?, ?)", 
                    (user_id, survey_id, str(responses), location, voice_recording_path))
     conn.commit()
@@ -185,17 +177,76 @@ def submit_survey():
 
     return jsonify({"success": True, "message": "Survey response submitted successfully"})
 
+# Download voice recording
+@app.route('/download/<int:response_id>', methods=['GET'])
+def download_voice_recording(response_id):
+    conn = sqlite3.connect('surveyapp.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT voice_recording_path FROM survey_responses WHERE id = ?", (response_id,))
+    recording = cursor.fetchone()
+
+    conn.close()
+
+    if recording and recording[0]:
+        voice_recording_path = recording[0]
+        
+        if os.path.exists(voice_recording_path):
+            return send_file(voice_recording_path, as_attachment=True)
+        else:
+            return jsonify({"success": False, "message": "File not found."}), 404
+    else:
+        return jsonify({"success": False, "message": "No recording found for this response."}), 404
+
+UPLOAD_FOLDER = 'uploads/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Ensure the upload directory exists
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Route to handle file upload
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file part'})
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No selected file'})
+
+    if file:
+        # Ensure the filename is secure
+        base_filename = 'voice_recording'
+        extension = '.m4a'
+        
+        # Check for existing files and auto-increment the file number
+        existing_files = os.listdir(app.config['UPLOAD_FOLDER'])
+        filtered_files = [f for f in existing_files if f.startswith(base_filename) and f.endswith(extension)]
+
+        # Find the next available file number
+        next_file_number = len(filtered_files) + 1
+        new_filename = f"{base_filename}{next_file_number}{extension}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(new_filename))
+
+        # Save the file
+        file.save(filepath)
+
+        return jsonify({'success': True, 'file_path': filepath})
+
+    return jsonify({'success': False, 'message': 'File upload failed'})
+
+# Delete a survey
 @app.route('/surveys/<int:survey_id>', methods=['DELETE'])
 def delete_survey(survey_id):
     conn = sqlite3.connect('surveyapp.db')
     cursor = conn.cursor()
 
-    # Check if the survey exists
     cursor.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,))
     survey = cursor.fetchone()
 
     if survey:
-        # Delete the survey
         cursor.execute("DELETE FROM surveys WHERE id = ?", (survey_id,))
         conn.commit()
         conn.close()
@@ -206,4 +257,4 @@ def delete_survey(survey_id):
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+    app.run(host='0.0.0.0', port=5000, debug=True)
